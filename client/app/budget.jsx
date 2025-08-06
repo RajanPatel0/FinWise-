@@ -1,15 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
+import BudgetCalculator from '../components/BudgetCalculator';
+import InvestmentSimulator from '../components/InvestmentSimulator';
 
 export default function Budget() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>📊 Budget Screen</Text>
-    </View>
+    <ScrollView contentContainerStyle={styles.container}>
+      <BudgetCalculator />
+      <InvestmentSimulator />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  text: { fontSize: 18, fontWeight: 'bold' },
+  container: { paddingVertical: 24, backgroundColor: '#f2f2f2' },
 });
