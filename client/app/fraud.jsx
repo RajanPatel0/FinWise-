@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
-  View,
   FlatList,
   KeyboardAvoidingView,
+  View,
 } from 'react-native';
 import {
   Text,
@@ -14,8 +14,10 @@ import {
   Chip,
   Divider,
   List,
+  ActivityIndicator,
 } from 'react-native-paper';
-import { classifyFraud } from '../services/fraud';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { classify, fetchHistory } from '../services/fraud';
 
 const SCENARIOS = [
   {
@@ -39,18 +41,48 @@ const SCENARIOS = [
 ];
 
 export default function Fraud() {
+  const [scenario, setScenario] = useState('generic');
   const [input, setInput] = useState('');
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Load history on mount
+  useEffect(() => {
+    setLoading(true);
+    fetchHistory(scenario)
+      .then((data) => {
+        setHistory(data);
+        AsyncStorage.setItem(
+          `history_${scenario}`,
+          JSON.stringify(data)
+        );
+      })
+      .catch(async () => {
+        const json = await AsyncStorage.getItem(`history_${scenario}`);
+        setHistory(JSON.parse(json) || []);
+      })
+      .finally(() => setLoading(false));
+  }, [scenario]);
 
   const handleClassify = async (text) => {
+    setLoading(true);
     try {
-      const res = await classifyFraud(text);
-      setResult(res);
-      setHistory([{ text, ...res }, ...history]);
+      const rec = await classify(text, scenario);
+      setResult(rec);
+      setHistory((h) => {
+        const updated = [rec, ...h];
+        AsyncStorage.setItem(
+          `history_${scenario}`,
+          JSON.stringify(updated)
+        );
+        return updated;
+      });
     } catch (e) {
       console.error(e);
       alert('Error calling fraud API');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,15 +96,18 @@ export default function Fraud() {
       <FlatList
         horizontal
         data={SCENARIOS}
-        keyExtractor={(s) => s.id}
+        keyExtractor={(item) => item.id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scenarioList}
         renderItem={({ item }) => (
           <Chip
-            style={styles.chip}
+            style={[
+              styles.chip,
+              item.id === scenario && { backgroundColor: '#cde1f9' },
+            ]}
             onPress={() => {
+              setScenario(item.id);
               setInput(item.example);
-              handleClassify(item.example);
             }}
           >
             {item.title}
@@ -92,16 +127,18 @@ export default function Fraud() {
           multiline
           style={styles.input}
         />
-
         <Button
           mode="contained"
           onPress={() => handleClassify(input)}
-          disabled={!input.trim()}
+          disabled={!input.trim() || loading}
           style={styles.button}
         >
-          Classify
+          {loading ? 'Analyzing…' : 'Classify'}
         </Button>
       </KeyboardAvoidingView>
+
+      {/* Loading indicator */}
+      {loading && <ActivityIndicator animating style={{ margin: 12 }} />}
 
       {/* Result Card */}
       {result && (
@@ -118,7 +155,6 @@ export default function Fraud() {
 
       <Divider style={{ marginVertical: 12 }} />
 
-      {/* History */}
       <Text variant="titleMedium" style={{ marginBottom: 8 }}>
         History
       </Text>
@@ -128,11 +164,17 @@ export default function Fraud() {
         renderItem={({ item }) => (
           <List.Item
             title={item.text}
-            description={`→ ${item.label.toUpperCase()} @ ${(item.score * 100).toFixed(1)}%`}
+            description={`→ ${item.label.toUpperCase()} @ ${(
+              item.score * 100
+            ).toFixed(1)}%`}
             left={(props) => (
               <List.Icon
                 {...props}
-                icon={item.label === 'phish' ? 'alert' : 'check'}
+                icon={
+                  item.label === 'phish'
+                    ? 'alert-circle-outline'
+                    : 'check-circle-outline'
+                }
               />
             )}
           />
