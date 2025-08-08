@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 
 // ⬇️ Fix these two imports (only one `..` since lessons.jsx is in client/app)
-import { tutorials } from '../constants/tutorials';
-import { TutorialCarousel } from '../components/TutorialCarousel';
+import { tutorials } from '../../constants/tutorials';
+import { TutorialCarousel } from '../../components/TutorialCarousel';
 
 export default function Lessons() {
   const [completed, setCompleted] = useState([]);
